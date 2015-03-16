@@ -234,7 +234,7 @@ public class ChatGUI extends JFrame
 		panel.setLayout( new GridLayout(3,2) );
 		
 		JTextField txtusername = new JTextField( "Anonymous" );
-		JTextField txtipaddress = new JTextField( "localhost:9090" );
+		JTextField txtipaddress = new JTextField( "localhost:9020" );
 		JLabel lblusername = new JLabel( "Username:" );
 		JLabel lblipaddress = new JLabel( "IP Address:" );
 		JButton connect = new JButton( "Login" );

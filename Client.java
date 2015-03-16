@@ -26,13 +26,12 @@ public class Client implements Runnable
 		in = new ObjectInputStream( socket.getInputStream() );
 		out = new ObjectOutputStream( socket.getOutputStream() );
 		
-		username = name;
 		gui = frame;
 		
 		thread = new Thread( this );
 		thread.start();
 		
-		sendMessage( "+" + name );
+		setUsername( name );
 	}
 	
 	public Socket getSocket()
@@ -73,6 +72,19 @@ public class Client implements Runnable
 		socket.close();
 		//thread.interrupt();
 		//System.out.println( "Connection terminated by client" );
+	}
+	
+	private void setUsername( String name )
+	{
+		StringBuilder newname = new StringBuilder();
+		for ( char c : name.toCharArray() )
+		{
+			if ( c != '@' && c != '+' )
+				newname.append(c);
+		}
+		
+		username = newname.toString();
+		sendMessage( "+" + newname.toString() );
 	}
 	
 	@Override
