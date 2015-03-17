@@ -25,13 +25,15 @@ public class ChatGUI extends JFrame
 	
 	private JList userList;
 	
+	private JTabbedPane tabPanel;
+	private JPanel selectedTab;
+	
 	public ChatGUI()
 	{
 		super( "Chatroom [No Connection]" );
 		setSize( 600, 500 );
 		setLocationRelativeTo( null );
 		setDefaultCloseOperation( EXIT_ON_CLOSE );
-		
 		init();
 	}
 	
@@ -51,6 +53,7 @@ public class ChatGUI extends JFrame
 		bar.add( file );
 		setJMenuBar( bar );
 		
+		tabPanel = new JTabbedPane();
 		JPanel panel = new JPanel();
 		panel.setLayout( new GridLayout(1,1) );
 		
@@ -71,8 +74,10 @@ public class ChatGUI extends JFrame
 		//panel.add( userList );
 		//panel.add( messageText );
 		add( messageText, BorderLayout.SOUTH );
-		add( panel );
+		//add( panel );
 		
+		tabPanel.addTab( "Open Chat", panel );
+		add( tabPanel );
 		addWindowListener( listenQuit() );
 	}
 	
@@ -101,7 +106,6 @@ public class ChatGUI extends JFrame
 				{
 					Socket s = new Socket( address[0], Integer.parseInt(address[1]) );
 					client = new Client( s, username, frame );
-					setTitle( "Chatroom [" + address[0] + " @ " + address[1] + "] (" + username + ")" );
 				} catch ( IOException ex ) {
 					JOptionPane.showMessageDialog( loginFrame, "Connection to server was not found", "Error", JOptionPane.ERROR_MESSAGE );
 				} finally {
@@ -131,10 +135,19 @@ public class ChatGUI extends JFrame
 				if ( client.getSocket() == null || !client.getSocket().isConnected() )
 					return;
 				
-				if ( msg.getText().startsWith("@") ) //handle private message
-					client.sendMessage( "@" + client.getUsername() + ": " + msg.getText() );
-				else
+				//if ( msg.getText().startsWith("@") ) //handle private message
+				//	client.sendMessage( "@" + client.getUsername() + ": " + msg.getText() );
+				//else
+				if ( tabPanel.getSelectedIndex() <= 0 )
 					client.sendMessage( client.getUsername() + ": " + msg.getText() );
+				else
+				{
+					String user = tabPanel.getTitleAt( tabPanel.getSelectedIndex() );
+					client.sendMessage( "@" + client.getUsername() + ": " + user + " " + msg.getText() );
+					
+					JPanel pane = (JPanel)tabPanel.getSelectedComponent(); 
+					addTextToTab( pane, client.getUsername() + ": " + msg.getText() );
+				}
 				
 				msg.setText( "" );
 			}
@@ -188,7 +201,26 @@ public class ChatGUI extends JFrame
 		return ( new MouseListener() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
-				messageText.setText( "@" + userList.getSelectedValue() );
+				String name = (String)userList.getSelectedValue();
+				JPanel p = getPrivateTab( name );
+				
+				if ( name == null || name.equals("") )
+					return;
+				
+				if ( p == null )
+				{
+					createNewTab( name, "", false );
+					for ( int i = 0; i < tabPanel.getTabCount(); i++ )
+					{
+						if ( tabPanel.getTitleAt(i).equals(name) )
+						{
+							tabPanel.setSelectedIndex(i);
+							return;
+						}
+					}
+				}
+				else
+					tabPanel.setSelectedComponent( p );
 			}
 
 			@Override
@@ -262,6 +294,67 @@ public class ChatGUI extends JFrame
 	
 	public void setUserList( ArrayList<String> list )
 	{
+		list.remove( client.getUsername() );
 		userList.setListData( list.toArray() );
+	}
+	
+	public void addToPrivateChat( String line )
+	{
+		String[] msg = line.split( ":", 3 );
+		
+		JPanel p = getPrivateTab( msg[0] );
+		if ( p == null )
+			createNewTab( msg[0], msg[1], true );
+		else
+			addChatToTab( p, msg[0], msg[1] );
+	}
+	
+	public void createNewTab( String name, String line, boolean write )
+	{
+		JPanel panel = new JPanel();
+		panel.setLayout( new GridLayout(1,1) );
+		
+		JTextArea chat = new JTextArea();
+		//JTextField message = new JTextField();
+		
+		chat.setEditable( false );
+		
+		if ( write )
+			chat.append( name + ":" + line + "\n" );
+		
+		panel.setName( name );
+		
+		panel.add( chat );
+		//panel.add( message );
+		
+		tabPanel.addTab( name, panel );
+		System.out.println( "New tab has been created" );
+	}
+	
+	public void addChatToTab( JPanel panel, String name, String line )
+	{
+		addTextToTab( panel, name + ": " + line );
+	}
+	
+	public void addTextToTab( JPanel panel, String line )
+	{
+		if ( panel == null )
+			return;
+		
+		for ( Component c : panel.getComponents() )
+		{
+			if ( c instanceof JTextArea )
+				((JTextArea)c).append( line + "\n" );
+		}
+	}
+	
+	public JPanel getPrivateTab( String name )
+	{
+		for ( int i = 0; i < tabPanel.getTabCount(); i++ )
+		{
+			if ( tabPanel.getTitleAt(i).equals(name) )
+				return (JPanel)tabPanel.getComponent(i);
+		}
+		return null;
 	}
 }

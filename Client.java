@@ -6,8 +6,6 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 
-import javax.swing.JFrame;
-
 public class Client implements Runnable 
 {
 	private ObjectOutputStream out;
@@ -18,7 +16,7 @@ public class Client implements Runnable
 	private String username;
 	
 	private ChatGUI gui;
-	
+
 	public Client( Socket s, String name, ChatGUI frame ) throws IOException
 	{
 		socket = s;
@@ -32,6 +30,7 @@ public class Client implements Runnable
 		thread.start();
 		
 		setUsername( name );
+		gui.setTitle( "Chatroom [" + socket.getLocalAddress().getHostAddress() + "@" + socket.getPort() + "] User: " + getUsername() );
 	}
 	
 	public Socket getSocket()
@@ -60,6 +59,12 @@ public class Client implements Runnable
 		gui.addToChat( line );
 	}
 	
+	public void addPrivateMessage( String line )
+	{
+		line = line.replace( "-", "" );
+		gui.addToPrivateChat( line );
+	}
+	
 	public void disconnect() throws IOException
 	{
 		if ( !socket.isConnected() )
@@ -79,7 +84,7 @@ public class Client implements Runnable
 		StringBuilder newname = new StringBuilder();
 		for ( char c : name.toCharArray() )
 		{
-			if ( c != '@' && c != '+' )
+			if ( c != '@' && c != '+' && c != '-' )
 				newname.append(c);
 		}
 		
@@ -99,7 +104,14 @@ public class Client implements Runnable
 				if ( (object = in.readObject()) != null )
 				{
 					if ( object instanceof String )
-						addMessage( (String)object );
+					{
+						String line = object.toString();
+						
+						if ( line.startsWith("-") )
+							addPrivateMessage( line );
+						else
+							addMessage( line );
+					}
 					else if ( object instanceof ArrayList )
 						gui.setUserList( (ArrayList<String>)object );
 					
