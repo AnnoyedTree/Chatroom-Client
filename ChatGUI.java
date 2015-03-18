@@ -309,34 +309,32 @@ public class ChatGUI extends JFrame
 			addChatToTab( p, msg[0], msg[1] );
 	}
 	
-	public void createNewTab( String name, String line, boolean write )
+	private void createNewTab( String name, String line, boolean write )
 	{
 		JPanel panel = new JPanel();
 		panel.setLayout( new GridLayout(1,1) );
 		
 		JTextArea chat = new JTextArea();
-		//JTextField message = new JTextField();
-		
+		JScrollPane scroll = new JScrollPane( chat );
+
 		chat.setEditable( false );
 		
 		if ( write )
 			chat.append( name + ":" + line + "\n" );
 		
 		panel.setName( name );
-		
-		panel.add( chat );
-		//panel.add( message );
+		panel.add( scroll );
 		
 		tabPanel.addTab( name, panel );
 		System.out.println( "New tab has been created" );
 	}
 	
-	public void addChatToTab( JPanel panel, String name, String line )
+	private void addChatToTab( JPanel panel, String name, String line )
 	{
 		addTextToTab( panel, name + ": " + line );
 	}
 	
-	public void addTextToTab( JPanel panel, String line )
+	private void addTextToTab( JPanel panel, String line )
 	{
 		if ( panel == null )
 			return;
@@ -345,10 +343,12 @@ public class ChatGUI extends JFrame
 		{
 			if ( c instanceof JTextArea )
 				((JTextArea)c).append( line + "\n" );
+			else if ( c instanceof JScrollPane )
+				((JScrollPane)c).getVerticalScrollBar().setValue( ((JScrollPane)c).getVerticalScrollBar().getMaximum() );
 		}
 	}
 	
-	public JPanel getPrivateTab( String name )
+	private JPanel getPrivateTab( String name )
 	{
 		for ( int i = 0; i < tabPanel.getTabCount(); i++ )
 		{
