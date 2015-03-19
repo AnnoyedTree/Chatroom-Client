@@ -24,10 +24,9 @@ public class ChatGUI extends JFrame
 	private JTextField messageText;
 	
 	private JList userList;
-	
 	private JTabbedPane tabPanel;
-	private JPanel selectedTab;
-	
+
+	//Constructor
 	public ChatGUI()
 	{
 		super( "Chatroom [No Connection]" );
@@ -37,22 +36,25 @@ public class ChatGUI extends JFrame
 		init();
 	}
 	
+	//Initialize our GUI. This is what our "Main/Login page" will look like
 	private void init()
 	{
+		//Add a menu bar so we can have our connect and disconnect buttons
 		JMenuBar bar = new JMenuBar();
 		JMenu file = new JMenu( "File" );
 		
 		JMenuItem connect = new JMenuItem( "Connect" );
 		JMenuItem disconnect = new JMenuItem( "Disconnect" );
 		
-		connect.addActionListener( actionLogin() );
-		disconnect.addActionListener( actionDisconnect() );
+		connect.addActionListener( actionLogin() ); //Show login menu when the user hits "Connect"
+		disconnect.addActionListener( actionDisconnect() ); //Disconnect user if he is valid and still logged in
 		
 		file.add( connect );
 		file.add( disconnect );
 		bar.add( file );
 		setJMenuBar( bar );
 		
+		//JTabbedPane will allow for us to setup multiple tabs through private chat
 		tabPanel = new JTabbedPane();
 		JPanel panel = new JPanel();
 		panel.setLayout( new GridLayout(1,1) );
@@ -71,17 +73,16 @@ public class ChatGUI extends JFrame
 		
 		panel.add( chatPane );
 		panel.add( listPane );
-		//panel.add( userList );
-		//panel.add( messageText );
 		add( messageText, BorderLayout.SOUTH );
-		//add( panel );
 		
 		tabPanel.addTab( "Open Chat", panel );
 		add( tabPanel );
 		addWindowListener( listenQuit() );
 	}
 	
-	//gui things to make neater
+	//ActionListener Login:
+	//This will make our loginFrame popup, similar to JOptionPane only more Inputs
+	//Inputs: Username Field, IP Address Field, Login button, Cancel button
 	private ActionListener actionLogin()
 	{
 		return ( new ActionListener() { 
@@ -93,6 +94,8 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//ActionListener Connect:
+	//After the user accepts his inputs (Username, IPAddress) he will begin to connect
 	private ActionListener actionConnect( final JTextField name, final JTextField ip, final ChatGUI frame )
 	{
 		return ( new ActionListener() {
@@ -101,20 +104,26 @@ public class ChatGUI extends JFrame
 			{
 				String[] address = ip.getText().split( ":" );
 				String username = name.getText();
-				
+
+				//Attempt to connect to our Server
 				try
 				{
 					Socket s = new Socket( address[0], Integer.parseInt(address[1]) );
 					client = new Client( s, username, frame );
 				} catch ( IOException ex ) {
+					//Alert the user that no connection has been made
 					JOptionPane.showMessageDialog( loginFrame, "Connection to server was not found", "Error", JOptionPane.ERROR_MESSAGE );
 				} finally {
+					//After login is successful or not, hide the login frame from the user
 					loginFrame.setVisible( false );
 				}
 			}
 		});
 	}
 	
+	//ActionListener Cancel:
+	//This is for when a user changes his mind while logging in
+	//He is allowed to perform a cancel to HIDE to loginFrame
 	private ActionListener actionCancel()
 	{
 		return ( new ActionListener() {
@@ -126,25 +135,31 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//ActionListener Enter:
+	//This is what happens when a user hits the "ENTER" key while typing a message
 	private ActionListener actionEnter( final JTextField msg )
 	{
 		return ( new ActionListener() {
 			@Override
 			public void actionPerformed( ActionEvent e )
 			{
-				if ( client.getSocket() == null || !client.getSocket().isConnected() )
+				//If there is no valid connection or there is no message (SPAM PROTECTION)
+				if ( client.getSocket() == null || !client.isConnected() || msg.getText().length() <= 0 )
 					return;
 				
-				//if ( msg.getText().startsWith("@") ) //handle private message
-				//	client.sendMessage( "@" + client.getUsername() + ": " + msg.getText() );
-				//else
+				//The user is on the indexed tab of 0 (This is the "Open Chat" tab since its the first tab we created)
 				if ( tabPanel.getSelectedIndex() <= 0 )
 					client.sendMessage( client.getUsername() + ": " + msg.getText() );
+				//If the user is on any other tab greater than 0, they will be private messages
 				else
 				{
+					//This gets the name of the Tab (Tab names will display the current user in the Private Messaging)
+					//We also setup our string to hold the user he is currently messaging
 					String user = tabPanel.getTitleAt( tabPanel.getSelectedIndex() );
 					client.sendMessage( "@" + client.getUsername() + ": " + user + " " + msg.getText() );
 					
+					//This will return the TAB the current user has selected, so when he presses ENTER
+					//Send a private message to the user whos tab is currently selected
 					JPanel pane = (JPanel)tabPanel.getSelectedComponent(); 
 					addTextToTab( pane, client.getUsername() + ": " + msg.getText() );
 				}
@@ -154,6 +169,8 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//ActionListener: Disconnect
+	//To properly log the user out of the chat room and close all connections
 	private ActionListener actionDisconnect()
 	{
 		return ( new ActionListener() {
@@ -162,7 +179,8 @@ public class ChatGUI extends JFrame
 			{
 				try
 				{
-					if ( client != null && client.getSocket().isConnected() )
+					//Attempt to disconnect the client
+					if ( client != null && client.isConnected() )
 					{
 						client.disconnect();
 						JOptionPane.showMessageDialog( null, "You have disconnected from the server", "Connection Aborted", JOptionPane.INFORMATION_MESSAGE );
@@ -175,6 +193,9 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//WindowListener: Quit
+	//This performs when the X in the top right hand corner of the program is clicked
+	//We want to close all connections before the program is exited
 	private WindowAdapter listenQuit()
 	{
 		return ( new WindowAdapter() {
@@ -186,7 +207,7 @@ public class ChatGUI extends JFrame
 					if ( loginFrame != null )
 						loginFrame.removeAll();
 					
-					if ( client != null && client.getSocket().isConnected() )
+					if ( client != null && client.isConnected() )
 						client.disconnect();
 					
 				} catch ( IOException ex ) {
@@ -196,19 +217,26 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//MouseListener: Select
+	//This is for the user clicking on another user in the "Open Chat" tab
 	private MouseListener listenSelect()
 	{
 		return ( new MouseListener() {
 			@Override
 			public void mouseClicked(MouseEvent e) {
+				//Get the name of the currently selected user in the list
 				String name = (String)userList.getSelectedValue();
 				JPanel p = getPrivateTab( name );
 				
+				//If the name is blank don't do anything
 				if ( name == null || name.equals("") )
 					return;
 				
+				//Try to find a tab with the users name
 				if ( p == null )
 				{
+					//If there is not tab for the User then create one
+					//And select the tab right after it is created
 					createNewTab( name, "", false );
 					for ( int i = 0; i < tabPanel.getTabCount(); i++ )
 					{
@@ -220,6 +248,7 @@ public class ChatGUI extends JFrame
 					}
 				}
 				else
+					//If the tab already exists then just select it
 					tabPanel.setSelectedComponent( p );
 			}
 
@@ -249,9 +278,11 @@ public class ChatGUI extends JFrame
 		});
 	}
 	
+	//This is the "Popup menu" for logging in to the server
+	//This will display Username & IP-Address
 	private void loginFrame()
 	{
-		if ( loginFrame != null && !loginFrame.isVisible() )
+		if ( loginFrame != null && !loginFrame.isVisible() && !client.isConnected() )
 		{
 			loginFrame.setVisible( true );
 			return;
@@ -286,29 +317,39 @@ public class ChatGUI extends JFrame
 		loginFrame.setVisible( true );
 	}
 	
+	//Adds a line to the "Open Chat" tab
 	public void addToChat( String line )
 	{
 		chatArea.append( line + "\n" );
 		chatPane.getVerticalScrollBar().setValue( chatPane.getVerticalScrollBar().getMaximum() );
 	}
 	
+	//This updates every time a new user connects or leaves
+	//We want to display all the users connected to the Chatroom
 	public void setUserList( ArrayList<String> list )
 	{
 		list.remove( client.getUsername() );
 		userList.setListData( list.toArray() );
 	}
 	
+	//Adds a line to a private chat tab
 	public void addToPrivateChat( String line )
 	{
+		//Split the line at ":" (Ex. Brian: Hello)
+		//This will return separate strings (Ex. "Brian" ":" "Hello")
 		String[] msg = line.split( ":", 3 );
 		
+		//Loop through all tabs and try to find the one the user is PMing
 		JPanel p = getPrivateTab( msg[0] );
 		if ( p == null )
+			//No tab found, lets create a new tab
 			createNewTab( msg[0], msg[1], true );
 		else
+			//We found the tab so all we need to do is add the line in to the chat
 			addChatToTab( p, msg[0], msg[1] );
 	}
 	
+	//Creates a new tab if one does not exist
 	private void createNewTab( String name, String line, boolean write )
 	{
 		JPanel panel = new JPanel();
@@ -326,28 +367,39 @@ public class ChatGUI extends JFrame
 		panel.add( scroll );
 		
 		tabPanel.addTab( name, panel );
-		System.out.println( "New tab has been created" );
 	}
 	
+	//Forward Method
 	private void addChatToTab( JPanel panel, String name, String line )
 	{
 		addTextToTab( panel, name + ": " + line );
 	}
 	
+	//Add a line to the text area in the tab.
 	private void addTextToTab( JPanel panel, String line )
 	{
+		//Fail-safe
 		if ( panel == null )
 			return;
 		
+		//Loop through all of the components within the Panel of the Tab
 		for ( Component c : panel.getComponents() )
 		{
-			if ( c instanceof JTextArea )
-				((JTextArea)c).append( line + "\n" );
-			else if ( c instanceof JScrollPane )
+			//If we find the ScrollPane the add to its viewport
+			if ( c instanceof JScrollPane )
+			{
+				JViewport port = ((JScrollPane)c).getViewport();
+				JTextArea chat = (JTextArea)port.getView();
+				
+				chat.append( line + "\n" );
+				//Set the scrollbar to the bottom so user can see the most recent message
 				((JScrollPane)c).getVerticalScrollBar().setValue( ((JScrollPane)c).getVerticalScrollBar().getMaximum() );
+				//break;
+			}
 		}
 	}
 	
+	//Loops through all the tabs titles and looks to match
 	private JPanel getPrivateTab( String name )
 	{
 		for ( int i = 0; i < tabPanel.getTabCount(); i++ )
