@@ -7,6 +7,8 @@ import java.net.Socket;
 import java.util.ArrayList;
 
 //We implement runnable since we don't want to create a new Thread class
+//Personally, it would just be one more file to work with when its such
+//a small program
 public class Client implements Runnable 
 {
 	private ObjectOutputStream out;
@@ -18,25 +20,28 @@ public class Client implements Runnable
 	
 	private ChatGUI gui;
 
-	//Constructor
+	//Constructor called from the Login button
 	public Client( Socket s, String name, ChatGUI frame ) throws IOException
 	{
-		//Our socket. This is more or less our connection to the server
+		//Our socket. This is the connection to the server
 		socket = s;
 		
-		//Add an Input/Output stream to allow 'communication' to the server, from us (the client).
+		//Add an input stream from the connection (to receive messages)
 		in = new ObjectInputStream( socket.getInputStream() );
+		//Add an output stream from the connection (to send messages)
 		out = new ObjectOutputStream( socket.getOutputStream() );
 		
-		//Assign GUI to the client
+		//Assign a GUI frame to the client
 		gui = frame;
 		
 		//Create a new thread for the client
+		//Thread is needed for input/output stream
 		thread = new Thread( this );
 		thread.start();
 		
-		//Set the user's name
+		//Set the user's name under my conditions
 		setUsername( name );
+		//Rename the gui frame title, since there is a connection
 		gui.setTitle( "Chatroom [" + socket.getLocalAddress().getHostAddress() + "@" + socket.getPort() + "] User: " + getUsername() );
 	}
 	
@@ -58,37 +63,36 @@ public class Client implements Runnable
 	{
 		try
 		{
-			//Flush what was in the output stream before we write data
+			//Flush the output stream
 			out.flush();
-			//Write to object to the server. The server will handle the data from here
+			//Send the message to the server
 			out.writeObject( object );
 		} catch ( IOException e ) {
 			//dothings
 		}
 	}
 	
-	//This adds a message to the "Open Chat" tab 
+	//Add a message to the "Open Chat" tab
 	public void addMessage( String line )
 	{
 		gui.addToChat( line );
 	}
 	
-	//This will handle all private messages.
+	//Add a message to the Private Messaging tabs
 	public void addPrivateMessage( String line )
 	{
 		line = line.replace( "-", "" );
 		gui.addToPrivateChat( line );
 	}
 	
-	//When the user disconnects we want to end all connections
+	//Client requests a disconnect, send request to the server and close connections
 	public void disconnect() throws IOException
 	{
 		//If he is already not connected we don't need to run this
 		if ( !isConnected() )
 			return;
 		
-		//We write a message to the server, 
-		//telling that this client no longer wishes to have a connection established
+		//Message to server so the server closes the connections to this client
 		out.write(1);
 		
 		//Now we can close our connections
@@ -99,23 +103,21 @@ public class Client implements Runnable
 		//thread.interrupt();
 	}
 	
-	//Client2Server messages hold a special character at the beginning of the message to help the client OR server
-	//distinguish what type of message it is receiving.
-	//Don't allow the characters @, +, or - since we use these and don't want users starting with these characters
-	//in their names.
+	//Set the user's name under my conditions
+	//Won't allow special characters of "@,+,-" and spaces
+	//It could possibly mess up how messages are handled by the server
 	private void setUsername( String name ) throws IOException
 	{
 		StringBuilder newname = new StringBuilder();
 		//Loop through all characters within the String
 		for ( char c : name.toCharArray() )
 		{
-			//If the character is not @, +, or - then it is a valid character
-			if ( c != '@' && c != '+' && c != '-' )
+			//If the character is not @, +, -, or an empty space then it is a valid character
+			if ( c != '@' && c != '+' && c != '-' && c != ' ' )
 				newname.append(c);
 		}
 		
-		//After we give his "new" username. It could be blank or very short.
-		//We want the user to have more than a couple of characters within their names
+		//After getting the new username, check if the user's name is not nothing
 		if ( newname.toString().equals("") || newname.toString().length() <= 2 )
 			throw new IOException();
 		
@@ -143,21 +145,22 @@ public class Client implements Runnable
 			//While this thread is running
 			while ( true ) 
 			{
-				//If our input we received from the server is a valid object
+				//Input is received from the server
 				if ( (object = in.readObject()) != null )
 				{
-					//If its a message
+					//If its a string (message)
 					if ( object instanceof String )
 					{
 						String line = object.toString();
 						
-						if ( line.startsWith("-") ) //the - is to tell our program that the message we received
-							addPrivateMessage( line ); //is a private message
+						if ( line.startsWith("-") ) //the "-" character for receiving a private message
+							addPrivateMessage( line );
 						else
 							addMessage( line ); //This is a message for everybody to see, since it contains no
 												//special characters
 					}
-					else if ( object instanceof ArrayList ) //If we receive the userList from the server
+					//User list
+					else if ( object instanceof ArrayList )
 						gui.setUserList( (ArrayList<String>)object ); //This will update from the server everytime somebody connects or disconnects
 					
 				}
